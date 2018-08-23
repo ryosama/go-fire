@@ -4,9 +4,11 @@ import (
 	"log"
 	"image"
 	"image/color"
+	"math"
 	"math/rand"
 	"github.com/hajimehoshi/ebiten"
 	"github.com/hajimehoshi/ebiten/ebitenutil"
+	"github.com/aquilax/go-perlin"
 	"fmt"
 	"time"
 )
@@ -19,12 +21,14 @@ const (
 )
 
 var (
+	alpha float64 = 4
+	beta float64  = 2
 	lastStatePressedKeyC bool = false
 	lastStatePressedKeyP bool = false
 	lastStatePressedKeyF bool = false
 	lastStatePressedKeyH bool = false
 
-	numberOfHotSpot int = 5
+	numberOfHotSpot int = 152
 	hotSpots []int
 	fixHotSpots bool = false
 
@@ -37,8 +41,9 @@ var (
 	currentColorMap [256]color.RGBA
 	colorMapLabels []string
 	
-	buffer1 [WINDOW_WIDTH][WINDOW_HEIGHT]uint8 // hotPower
-	buffer2 [WINDOW_WIDTH][WINDOW_HEIGHT]uint8 // hotPower
+	buffer1 		[WINDOW_WIDTH][WINDOW_HEIGHT]uint8 // hotness power
+	buffer2 		[WINDOW_WIDTH][WINDOW_HEIGHT]uint8 // hotness power
+	collingBuffer 	[WINDOW_WIDTH][WINDOW_HEIGHT]uint8 // colling power
 	imageBuffer *image.RGBA = image.NewRGBA(image.Rect(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT))
 )
 
@@ -63,7 +68,14 @@ func update(surface *ebiten.Image) error {
 				hotness3 := int(buffer1[x  ][y+1])
 				hotness4 := int(buffer1[x  ][y-1])
 
-				newHotness := (hotness1+hotness2+hotness3+hotness4) / 4
+				newHotness := float64(hotness1+hotness2+hotness3+hotness4) / 4
+				newHotness = newHotness - float64(collingBuffer[x][y])
+				if (newHotness < 0) {
+					newHotness = 0
+				} else if newHotness > 255 {
+					newHotness = 255
+				}
+
 				buffer2[x][y-1] = uint8(newHotness)
 			}
 
@@ -92,6 +104,23 @@ func update(surface *ebiten.Image) error {
 	// update surface
 	surface.ReplacePixels( imageBuffer.Pix )
 
+	// move cooling buffer up
+	firstLine := [WINDOW_WIDTH]uint8{}
+	for x:=0 ; x<WINDOW_WIDTH ; x++ {
+		firstLine[x] = collingBuffer[x][0];
+		//fmt.Printf("firstLine[%d]=%d collingBuffer[%d][0]=%d\n",x,firstLine[x],x,collingBuffer[x][0])
+	}	
+
+	for x:=0 ; x<WINDOW_WIDTH ; x++ {
+		for y:=1 ; y<WINDOW_HEIGHT ; y++ {
+			collingBuffer[x][y-1] = collingBuffer[x][y];
+		}
+	}
+
+	for x:=0 ; x<WINDOW_WIDTH ; x++ {
+		collingBuffer[x][WINDOW_HEIGHT-1] = firstLine[x];
+	}
+
 	buffer1 = buffer2
 
 	if displayHelp {
@@ -111,7 +140,8 @@ func update(surface *ebiten.Image) error {
 func main() {
 	initColorMaps()
 	initHotSpots()
-	
+	initNoise()
+
 	if err := ebiten.Run(update, WINDOW_WIDTH, WINDOW_HEIGHT, SCALE, "Fire 2"); err != nil {
 		log.Fatal(err)
 	}
@@ -122,6 +152,7 @@ func convertHotnessToImage() {
 	for x:=0 ; x<WINDOW_WIDTH ; x++ {
 		for y:=0 ; y<WINDOW_HEIGHT ; y++ {
 			imageBuffer.SetRGBA(x, y, currentColorMap[ buffer1[x][y] ])
+			//imageBuffer.SetRGBA(x, y, currentColorMap[ collingBuffer[x][y] ])
 		}
 	}
 }
@@ -133,6 +164,20 @@ func drawColorMap() {
 		imageBuffer.SetRGBA(x+20, 102, currentColorMap[x])
 		imageBuffer.SetRGBA(x+20, 103, currentColorMap[x])
 		imageBuffer.SetRGBA(x+20, 104, currentColorMap[x])
+	}
+}
+
+func initNoise() {
+	p := perlin.NewPerlin(4, 2, 3, int64(rand.Intn(1000)))
+	for x := 0.0; x < WINDOW_WIDTH ; x++ {
+		for y := 0.0; y < WINDOW_HEIGHT ; y++ {
+			noise := p.Noise2D(x/10, y/10) *10
+			if noise < 0 {
+			 	noise = 0
+			}
+			collingBuffer[int(x)][int(y)] = uint8(math.Round(noise)) // fill the colling map with  -1 to +1
+			//fmt.Printf("collingBuffer[%d][%d]=%f\n",x,y,noise)
+		}
 	}
 }
 
@@ -230,6 +275,7 @@ func bindings() {
 		initHotSpots()
 	}
 
+
 	if ebiten.IsKeyPressed(ebiten.KeyC) {
 		if lastStatePressedKeyC == false {
 			currentColorMapIndex++
@@ -266,6 +312,7 @@ func bindings() {
 		if lastStatePressedKeyH == false {
 			displayHelp = !displayHelp
 			lastStatePressedKeyH = true
+			initNoise()
 		}
 	} else {
 		lastStatePressedKeyH = false

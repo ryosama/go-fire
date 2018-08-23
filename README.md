@@ -3,13 +3,16 @@ Go-fire
 
 A fire simulation writen in Go for learning.
 
-It use the [Ebiten](https://github.com/hajimehoshi/ebiten) library for the 2D graphics engine (you should install it)
+It use the [Ebiten](https://github.com/hajimehoshi/ebiten) library for the 2D graphics engine
+
+It use the [Perlin](https://github.com/aquilax/go-perlin) library for generating cooling map
 
 Install
 =======
 
 ```bash
 $ go get -u github.com/hajimehoshi/ebiten
+$ go get -u github.com/aquilax/go-perlin
 $ go get -u github.com/ryosama/go-fire
 ```
 
