@@ -25,6 +25,8 @@ Screenshot
 
 ![White color map](https://github.com/ryosama/go-fire/raw/master/screenshot3.png "White color map")
 
+![Predator map](https://github.com/ryosama/go-fire/raw/master/screenshot4.png "Predator color map")
+
 Documentation
 =============
 

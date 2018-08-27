@@ -38,7 +38,7 @@ var (
 	pause bool = false			// flag for pausing the animation or not
 	
 	displayColorMap bool = false	// flag for displaying the color map or not
-	displayHelp bool = true			// flag for displaying help or not
+	displayHelp 	bool = true		// flag for displaying help or not
 
 	colorMaps 			map[string][256]color.RGBA 	// contains all the color maps
 	currentColorMap 	[256]color.RGBA 			// current color map displayed
@@ -125,10 +125,8 @@ func update(surface *ebiten.Image) error {
 	convertHotnessToImage()
 
 	// display the color map to the screen
-	if displayColorMap {
-		drawColorMap()
-	}
-
+	drawColorMap()
+	
 	// update surface
 	surface.ReplacePixels( imageBuffer.Pix )
 
@@ -196,9 +194,11 @@ func drawFPS(surface *ebiten.Image) {
 
 // draw the current color map on the screen (5 pixels large)
 func drawColorMap() {
-	for x:=0 ; x<len(currentColorMap) ; x++ {
-		for y:=0 ; y<5 ; y++ {
-			imageBuffer.SetRGBA(x+20, 100+y, currentColorMap[x])
+	if displayColorMap {
+		for x:=0 ; x<len(currentColorMap) ; x++ {
+			for y:=0 ; y<5 ; y++ {
+				imageBuffer.SetRGBA(x+20, 100+y, currentColorMap[x])
+			}
 		}
 	}
 }
@@ -240,6 +240,7 @@ func initColorMaps() {
 	colorMaps["Black_Red_Yellow_White"] = Black_Red_Yellow_White_ColorMap()
 	colorMaps["Black_Yellow_White"]     = Black_Yellow_White_ColorMap()
 	colorMaps["Black_White"]     		= Black_White_ColorMap()
+	colorMaps["Predator"]     			= Predator_ColorMap()
 
 	colorMapLabels = []string{}
 	for key,_ := range colorMaps {
@@ -298,6 +299,45 @@ func Black_White_ColorMap() [256]color.RGBA {
 	for i:=0 ; i<256 ; i++ { // black to white
 		colorMap[i] = color.RGBA{ R:uint8(i), G:uint8(i), B:uint8(i), A:255 }
 	}
+	return colorMap
+}
+
+// create the Black -> Red -> Yellow -> White  color map
+func Predator_ColorMap() [256]color.RGBA {
+	var colorMap [256]color.RGBA
+
+	step := 5
+
+	j:=0
+	for i:=0 ; i<int(255/step)*1 ; i++ { // from black to VIOLET
+		colorMap[i] = color.RGBA{ R:uint8(j*step), G:0, B:uint8(j*step), A:255 }
+		j++
+	}
+
+	j=0
+	for i:=int(255/step)*1 ; i<int(255/step)*2 ; i++ { // from VIOLET to BLUE
+		colorMap[i] = color.RGBA{ R:255-uint8(j*step), G:0, B:255, A:255 }
+		j++
+	}
+
+	j=0
+	for i:=int(255/step)*2 ; i<int(255/step)*3 ; i++ { // from BLUE to RED
+		colorMap[i] = color.RGBA{ R:uint8(j*step), G:0, B:255-uint8(j*step), A:255 }
+		j++
+	}
+
+	j=0
+	for i:=int(255/step)*3 ; i<int(255/step)*4 ; i++ { // from RED to YELLOW
+		colorMap[i] = color.RGBA{ R:255, G:uint8(j*step), B:0, A:255 }
+		j++
+	}
+
+	j=0
+	for i:=int(255/step)*4 ; i<256 ; i++ { // from YELLOW to WHITE
+		colorMap[i] = color.RGBA{ R:255, G:255, B:uint8(j*step), A:255 }
+		j++
+	}
+
 	return colorMap
 }
 
