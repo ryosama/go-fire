@@ -48,6 +48,5 @@ Documentation
 
 TODO
 =============
-- Add sparkles in the fire
 
 - Add a video capture

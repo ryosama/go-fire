@@ -31,6 +31,7 @@ var (
 	firePower int 		= 2 	// velocity of the flames
 	hotSpots []int 				// keep trace of the hotspot when they are fixed
 	fixHotSpots bool 	= false // flag for fix or not the hotspot
+	fireHeight int      = 0		// hightest flame
 
 	audioPlayer 		*audio.Player  // to control audio
 
@@ -54,6 +55,8 @@ var (
 func update(surface *ebiten.Image) error {
 	
 	if !pause { // if animation isn't paused
+
+		fireHeight=0 // reset height of hightest flame
 
 		if !fixHotSpots { // if hotspots aren't static
 			initHotSpots()
@@ -89,6 +92,10 @@ func update(surface *ebiten.Image) error {
 				} else if newHotness > 255 {
 					newHotness = 255
 				}
+
+				if newHotness > 20 {
+					if WINDOW_HEIGHT - y > fireHeight { fireHeight = WINDOW_HEIGHT - y }
+				}
 				buffer2[pixelAt(x,y-1)] = uint8(newHotness)
 			}
 
@@ -100,9 +107,14 @@ func update(surface *ebiten.Image) error {
 			newHotness := float64(hotness1+hotness2+hotness4) / 3
 			buffer2[pixelAt(x,y-1)] = uint8(newHotness)
 		}
-	}
 
-	bindings() // manage keyboard inputs and mouse inputs
+		// add random sparkles
+		addSparkles()
+
+	} // end if game paused
+
+	// manage keyboard inputs and mouse inputs
+	bindings()
 
 	// frame skip
 	if ebiten.IsDrawingSkipped() {
@@ -127,9 +139,7 @@ func update(surface *ebiten.Image) error {
 	buffer1 = buffer2
 
 	// display FPS and other stuff
-	if displayHelp {
-		drawFPS(surface)
-	}
+	drawFPS(surface)
 	
 	return nil
 }
@@ -172,14 +182,16 @@ func moveCollingBufferUp() {
 
 // display some stuff on the screen
 func drawFPS(surface *ebiten.Image) {
-	ebitenutil.DebugPrint(surface,
-		fmt.Sprintf("FPS:%f\n[Up/Down] Number of flames=%d\n[Left/Right] Fire Power=%d\n[C] Color Map %d=%s\n[P]ause [S]tatic [M]ute [H]elp",
-			ebiten.CurrentFPS(),
-			numberOfHotSpot,
-			firePower,
-			currentColorMapIndex,
-			colorMapLabels[currentColorMapIndex],
-	))
+	if displayHelp {
+		ebitenutil.DebugPrint(surface,
+			fmt.Sprintf("FPS:%f\n[Up/Down] Number of flames=%d\n[Left/Right] Fire Power=%d\n[C] Color Map %d=%s\n[P]ause [S]tatic [M]ute [H]elp",
+				ebiten.CurrentFPS(),
+				numberOfHotSpot,
+				firePower,
+				currentColorMapIndex,
+				colorMapLabels[currentColorMapIndex],
+		))
+	}
 }
 
 // draw the current color map on the screen (5 pixels large)
@@ -323,29 +335,73 @@ func initSound() {
 }
 
 
+// draw a circle
+func drawCircle(x0, y0, r int) {
+    x, y, dx, dy := r-1, 0, 1, 1
+    err := dx - (r * 2)
+
+    for x > y {
+        buffer2[pixelAt(x0+x, y0+y)] = 255
+        buffer2[pixelAt(x0+y, y0+x)] = 255
+        buffer2[pixelAt(x0-y, y0+x)] = 255
+        buffer2[pixelAt(x0-x, y0+y)] = 255
+        buffer2[pixelAt(x0-x, y0-y)] = 255
+        buffer2[pixelAt(x0-y, y0-x)] = 255
+        buffer2[pixelAt(x0+y, y0-x)] = 255
+        buffer2[pixelAt(x0+x, y0-y)] = 255
+
+        if err <= 0 {
+            y++
+            err += dy
+            dy += 2
+        }
+        if err > 0 {
+            x--
+            dx += 2
+            err += dx - (r * 2)
+        }
+    }
+}
+
+// add random sparkles inside the flame
+func addSparkles() {
+	// 20% of the times, add a spakle
+	if rand.Intn(10) > 8 {
+		x := rand.Intn(WINDOW_WIDTH-1)
+		if x < 1 { x=1 }
+
+		// but below the fire hightest point
+		y := rand.Intn(fireHeight-1)
+		if y < 1 { y=1 }
+		if y > WINDOW_HEIGHT-1 { y=WINDOW_HEIGHT-1 }
+
+		// draw a little sparkle
+		buffer2[pixelAt(x  ,WINDOW_HEIGHT - y  )] = 255
+		buffer2[pixelAt(x-1,WINDOW_HEIGHT - y  )] = 255
+		buffer2[pixelAt(x+1,WINDOW_HEIGHT - y  )] = 255
+		buffer2[pixelAt(x  ,WINDOW_HEIGHT - y-1)] = 255
+		buffer2[pixelAt(x  ,WINDOW_HEIGHT - y+1)] = 255
+	}
+}
+
+
 // manage keyboard and mouse input
 func bindings() {
 	// if up, increase number of hotspots
 	if ebiten.IsKeyPressed(ebiten.KeyUp) {
-		numberOfHotSpot++
-		if numberOfHotSpot>300 {
-			numberOfHotSpot=300
-		}
+		numberOfHotSpot = int(math.Min(float64(numberOfHotSpot+1),300)) // maximum 300 hotspots
 		initHotSpots()
 	}
 
 	// if down, decrease number of hotspots
 	if ebiten.IsKeyPressed(ebiten.KeyDown) {
-		numberOfHotSpot--
-		if numberOfHotSpot<0 {
-			numberOfHotSpot=0
-		}
+		numberOfHotSpot = int(math.Max(float64(numberOfHotSpot-1),0))
 		initHotSpots()
 	}
 	
 	// if right, increase power the flames
 	if inpututil.IsKeyJustPressed(ebiten.KeyRight) {
-		firePower = int(math.Min(float64(firePower+1),5))
+		firePower = int(math.Min(float64(firePower+1),5)) // maximum 5
 	}
 
 	// if left, decrease power of the flames
@@ -407,39 +463,10 @@ func bindings() {
 	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
 		x,y := ebiten.CursorPosition()
 		if x>10 && x<WINDOW_WIDTH-10 && y>10 && y<WINDOW_HEIGHT-10 { // not click on the edge
-			for i:=1 ; i<=10 ; i++ {
-				drawCircle(x,y,i)
+			for radius:=1 ; radius<=10 ; radius++ { // draw 10 circle from with R=i to 10
+				drawCircle(x,y,radius)
 			}
 		}
 	}
 	
-}
-
-
-// draw a circle
-func drawCircle(x0, y0, r int) {
-    x, y, dx, dy := r-1, 0, 1, 1
-    err := dx - (r * 2)
-
-    for x > y {
-        buffer2[pixelAt(x0+x, y0+y)] = 255
-        buffer2[pixelAt(x0+y, y0+x)] = 255
-        buffer2[pixelAt(x0-y, y0+x)] = 255
-        buffer2[pixelAt(x0-x, y0+y)] = 255
-        buffer2[pixelAt(x0-x, y0-y)] = 255
-        buffer2[pixelAt(x0-y, y0-x)] = 255
-        buffer2[pixelAt(x0+y, y0-x)] = 255
-        buffer2[pixelAt(x0+x, y0-y)] = 255
-
-        if err <= 0 {
-            y++
-            err += dy
-            dy += 2
-        }
-        if err > 0 {
-            x--
-            dx += 2
-            err += dx - (r * 2)
-        }
-    }
 }
