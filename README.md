@@ -1,7 +1,7 @@
 Go-fire
 ======
 
-A fire simulation writen in Go for learning.
+A fire simulation writen in Go for educational purpose.
 
 It use the [Ebiten](https://github.com/hajimehoshi/ebiten) library for the 2D graphics engine
 
@@ -21,17 +21,21 @@ Screenshot
 
 ![screenshot 1](https://github.com/ryosama/go-fire/raw/master/screenshot1.png "Screenshot 1")
 
-![screenshot 2](https://github.com/ryosama/go-fire/raw/master/screenshot2.png "Screenshot 2")
+![Yellow color map](https://github.com/ryosama/go-fire/raw/master/screenshot2.png "Yellow color map")
+
+![White color map](https://github.com/ryosama/go-fire/raw/master/screenshot3.png "White color map")
 
 Documentation
 =======
 
 - __[Up/Down]__ Increase or decrease the number of fire hotspots
 
+- __[Left/Right]__ Increase or decrease the power of the flames
+
 - __[C]__ Change the color map
 
 - __[H]__ Display the commands and FPS
 
-- __[F]__ Fix the hotspots
+- __[S]__ Fix the hotspots places
 
 - __[P]__ Pause the animation
