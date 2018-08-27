@@ -5,16 +5,12 @@ import (
 	"image"
 	"image/color"
 	"math"
-	_ "os"
-	_ "io"
 	"io/ioutil"
 	"math/rand"
 	"github.com/hajimehoshi/ebiten"
 	"github.com/hajimehoshi/ebiten/ebitenutil"
-	_ "github.com/hajimehoshi/go-mp3"
-	_ "github.com/hajimehoshi/oto"
 	"github.com/hajimehoshi/ebiten/audio"
-	"github.com/hajimehoshi/ebiten/audio/wav"
+	"github.com/hajimehoshi/ebiten/audio/mp3"
 	"github.com/aquilax/go-perlin"
 	"fmt"
 	"time"
@@ -35,8 +31,7 @@ var (
 	hotSpots []int 				// keep trace of the hotspot when they are fixed
 	fixHotSpots bool 	= false // flag for fix or not the hotspot
 
-	audioContext 	*audio.Context // for audio
-	player 		 	*audio.Player
+	audioPlayer 		*audio.Player  // to control audio
 
 	pause bool = false			// flag for pausing the animation or not
 	
@@ -57,7 +52,6 @@ var (
 
 func update(surface *ebiten.Image) error {
 	bindings() 	// manage keyboard inputs and mouse inputs
-	playSound() // play the sound
 	
 	if !pause { // if animation isn't paused
 
@@ -146,9 +140,7 @@ func main() {
 	initSound()
 
 	// infinit loop
-	if err := ebiten.Run(update, WINDOW_WIDTH, WINDOW_HEIGHT, SCALE, "Fire 2"); err != nil {
-		log.Fatal(err)
-	}
+	if err := ebiten.Run(update, WINDOW_WIDTH, WINDOW_HEIGHT, SCALE, "Fire 2"); err != nil { log.Fatal(err) }
 }
 
 // convert x,y coordonnate to an index
@@ -177,7 +169,7 @@ func moveCollingBufferUp() {
 // display some stuff on the screen
 func drawFPS(surface *ebiten.Image) {
 	ebitenutil.DebugPrint(surface,
-		fmt.Sprintf("FPS:%f\n[Up/Down] Number of flames=%d\n[Left/Right] Fire Power=%d\n[C] Color Map %d=%s\n[P]ause [S]tatic [H]elp",
+		fmt.Sprintf("FPS:%f\n[Up/Down] Number of flames=%d\n[Left/Right] Fire Power=%d\n[C] Color Map %d=%s\n[P]ause [S]tatic [M]ute [H]elp",
 			ebiten.CurrentFPS(),
 			numberOfHotSpot,
 			firePower,
@@ -203,6 +195,7 @@ func initBinding() {
 	lastStatePressedKey["S"] 	 	= false
 	lastStatePressedKey["H"] 	 	= false
 	lastStatePressedKey["C"]		= false
+	lastStatePressedKey["M"]		= false
 }
 
 // the cooling map use Perlin Noise for the generation
@@ -312,43 +305,27 @@ func launchColorMapTimer() {
     }()
 }
 
-func initSound() {
-	var err error
-	audioContext, err = audio.NewContext(44100)
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
 // play the fire sound
-func playSound() {
-	if player == nil {
-		soundFile, err := ioutil.ReadFile("fire.wav")
-		if err != nil {
-			log.Fatal(err)
-		}
+func initSound() {
+	// load the file into memory
+	soundFile, err := ioutil.ReadFile("fire.mp3")
+	if err != nil { log.Fatal(err) }
 
-		// Decode the wav file.
-		// wavS is a decoded io.ReadCloser and io.Seeker.
-		wavS, err := wav.Decode(audioContext, audio.BytesReadSeekCloser(soundFile))
-		if err != nil {
-			log.Fatal(err)
-		}
+	audioContext, err := audio.NewContext(44100)
+	if err != nil { log.Fatal(err) }
 
-		// Create an infinite loop stream from the decoded bytes.
-		// s is still an io.ReadCloser and io.Seeker.
-		s := audio.NewInfiniteLoop(wavS, wavS.Length())
+	// Decode the mp3 file.
+	wavS, err := mp3.Decode(audioContext, audio.BytesReadSeekCloser(soundFile))
+	if err != nil { log.Fatal(err) }
 
-		player, err = audio.NewPlayer(audioContext, s)
-		if err != nil {
-			log.Fatal(err)
-		}
+	// Create an infinite loop stream from the decoded bytes.
+	s := audio.NewInfiniteLoop(wavS, wavS.Length())
 
-		// Play the infinite-length stream. This never ends.
-		player.Play()
-	}
-	
+	audioPlayer, err = audio.NewPlayer(audioContext, s)
+	if err != nil { log.Fatal(err) }
 
+	// Play the infinite-length stream. This never ends.
+	audioPlayer.Play()
 }
 
 
@@ -435,6 +412,21 @@ func bindings() {
 		}
 	} else {
 		lastStatePressedKey["H"] = false
+	}
+
+	// if M, toogle sound
+	if ebiten.IsKeyPressed(ebiten.KeyM) {
+		if lastStatePressedKey["M"] == false {
+			if audioPlayer.IsPlaying() {
+				audioPlayer.Pause()
+			} else {
+				audioPlayer.Play()
+			}
+			//fmt.Printf("audioPlayer.Volume()=%0.2f audioPlayer.IsPlaying()=%b\n", audioPlayer.Volume(), audioPlayer.IsPlaying())
+			lastStatePressedKey["M"] = true
+		}
+	} else {
+		lastStatePressedKey["M"] = false
 	}
 	
 }

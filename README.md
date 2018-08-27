@@ -12,8 +12,6 @@ Install
 
 ```bash
 $ go get -u github.com/hajimehoshi/ebiten
-$ go get -u github.com/hajimehoshi/go-mp3
-$ go get -u github.com/hajimehoshi/oto
 $ go get -u github.com/aquilax/go-perlin
 $ go get -u github.com/ryosama/go-fire
 ```
@@ -42,10 +40,10 @@ Documentation
 
 - __[P]__ Pause the animation
 
+- __[M]__ Mute the sound
+
 TODO
 =============
-- Add sound and a control to switch it off
-
 - Add sparkles in the fire
 
 - Add a video capture
