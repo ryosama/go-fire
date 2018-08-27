@@ -5,9 +5,16 @@ import (
 	"image"
 	"image/color"
 	"math"
+	_ "os"
+	_ "io"
+	"io/ioutil"
 	"math/rand"
 	"github.com/hajimehoshi/ebiten"
 	"github.com/hajimehoshi/ebiten/ebitenutil"
+	_ "github.com/hajimehoshi/go-mp3"
+	_ "github.com/hajimehoshi/oto"
+	"github.com/hajimehoshi/ebiten/audio"
+	"github.com/hajimehoshi/ebiten/audio/wav"
 	"github.com/aquilax/go-perlin"
 	"fmt"
 	"time"
@@ -28,6 +35,9 @@ var (
 	hotSpots []int 				// keep trace of the hotspot when they are fixed
 	fixHotSpots bool 	= false // flag for fix or not the hotspot
 
+	audioContext 	*audio.Context // for audio
+	player 		 	*audio.Player
+
 	pause bool = false			// flag for pausing the animation or not
 	
 	displayColorMap bool = false	// flag for displaying the color map or not
@@ -46,11 +56,12 @@ var (
 )
 
 func update(surface *ebiten.Image) error {
-	bindings() // manage keyboard inputs and mouse inputs
+	bindings() 	// manage keyboard inputs and mouse inputs
+	playSound() // play the sound
 	
-	if !pause {
+	if !pause { // if animation isn't paused
 
-		if !fixHotSpots {
+		if !fixHotSpots { // if hotspots aren't static
 			initHotSpots()
 		}
 		
@@ -132,6 +143,7 @@ func main() {
 	initColorMaps()
 	initHotSpots()
 	initNoise()
+	initSound()
 
 	// infinit loop
 	if err := ebiten.Run(update, WINDOW_WIDTH, WINDOW_HEIGHT, SCALE, "Fire 2"); err != nil {
@@ -283,7 +295,7 @@ func Black_Red_Yellow_White_ColorMap() [256]color.RGBA {
 // create the Black -> White  color map
 func Black_White_ColorMap() [256]color.RGBA {
 	var colorMap [256]color.RGBA
-	
+
 	for i:=0 ; i<256 ; i++ { // black to white
 		colorMap[i] = color.RGBA{ R:uint8(i), G:uint8(i), B:uint8(i), A:255 }
 	}
@@ -299,6 +311,46 @@ func launchColorMapTimer() {
 		displayColorMap=false
     }()
 }
+
+func initSound() {
+	var err error
+	audioContext, err = audio.NewContext(44100)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+// play the fire sound
+func playSound() {
+	if player == nil {
+		soundFile, err := ioutil.ReadFile("fire.wav")
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// Decode the wav file.
+		// wavS is a decoded io.ReadCloser and io.Seeker.
+		wavS, err := wav.Decode(audioContext, audio.BytesReadSeekCloser(soundFile))
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// Create an infinite loop stream from the decoded bytes.
+		// s is still an io.ReadCloser and io.Seeker.
+		s := audio.NewInfiniteLoop(wavS, wavS.Length())
+
+		player, err = audio.NewPlayer(audioContext, s)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// Play the infinite-length stream. This never ends.
+		player.Play()
+	}
+	
+
+}
+
 
 // manage keyboard and mouse input
 func bindings() {

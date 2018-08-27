@@ -1,5 +1,5 @@
 Go-fire
-======
+=======
 
 A fire simulation writen in Go for educational purpose.
 
@@ -12,6 +12,8 @@ Install
 
 ```bash
 $ go get -u github.com/hajimehoshi/ebiten
+$ go get -u github.com/hajimehoshi/go-mp3
+$ go get -u github.com/hajimehoshi/oto
 $ go get -u github.com/aquilax/go-perlin
 $ go get -u github.com/ryosama/go-fire
 ```
@@ -19,14 +21,14 @@ $ go get -u github.com/ryosama/go-fire
 Screenshot
 ===========
 
-![screenshot 1](https://github.com/ryosama/go-fire/raw/master/screenshot1.png "Screenshot 1")
+![Red Yellow color map](https://github.com/ryosama/go-fire/raw/master/screenshot1.png "Red Yellow color map")
 
 ![Yellow color map](https://github.com/ryosama/go-fire/raw/master/screenshot2.png "Yellow color map")
 
 ![White color map](https://github.com/ryosama/go-fire/raw/master/screenshot3.png "White color map")
 
 Documentation
-=======
+=============
 
 - __[Up/Down]__ Increase or decrease the number of fire hotspots
 
@@ -39,3 +41,11 @@ Documentation
 - __[S]__ Fix the hotspots places
 
 - __[P]__ Pause the animation
+
+TODO
+=============
+- Add sound and a control to switch it off
+
+- Add sparkles in the fire
+
+- Add a video capture
