@@ -42,6 +42,10 @@ Documentation
 
 - __[M]__ Mute the sound
 
+- __[Alt+Enter]__ Toogle fullscreen
+
+- __[Left Click]__ Draw a fire circle
+
 TODO
 =============
 - Add sparkles in the fire

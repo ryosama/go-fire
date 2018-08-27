@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"github.com/hajimehoshi/ebiten"
 	"github.com/hajimehoshi/ebiten/ebitenutil"
+	"github.com/hajimehoshi/ebiten/inpututil"
 	"github.com/hajimehoshi/ebiten/audio"
 	"github.com/hajimehoshi/ebiten/audio/mp3"
 	"github.com/aquilax/go-perlin"
@@ -51,7 +52,6 @@ var (
 )
 
 func update(surface *ebiten.Image) error {
-	bindings() 	// manage keyboard inputs and mouse inputs
 	
 	if !pause { // if animation isn't paused
 
@@ -102,6 +102,8 @@ func update(surface *ebiten.Image) error {
 		}
 	}
 
+	bindings() // manage keyboard inputs and mouse inputs
+
 	// frame skip
 	if ebiten.IsDrawingSkipped() {
 		return nil
@@ -133,7 +135,9 @@ func update(surface *ebiten.Image) error {
 }
 
 func main() {
-	initBinding()
+	// ini binding
+	lastStatePressedKey = make(map[string]bool)
+
 	initColorMaps()
 	initHotSpots()
 	initNoise()
@@ -187,16 +191,6 @@ func drawColorMap() {
 	}
 }
 
-func initBinding() {
-	lastStatePressedKey = make(map[string]bool)
-	lastStatePressedKey["Right"] 	= false
-	lastStatePressedKey["Left"]  	= false
-	lastStatePressedKey["P"] 	 	= false
-	lastStatePressedKey["S"] 	 	= false
-	lastStatePressedKey["H"] 	 	= false
-	lastStatePressedKey["C"]		= false
-	lastStatePressedKey["M"]		= false
-}
 
 // the cooling map use Perlin Noise for the generation
 func initNoise() {
@@ -350,83 +344,102 @@ func bindings() {
 	}
 	
 	// if right, increase power the flames
-	if ebiten.IsKeyPressed(ebiten.KeyRight) {
-		if lastStatePressedKey["Right"] == false {
-			firePower = int(math.Min(float64(firePower+1),5))
-			lastStatePressedKey["Right"] = true
-		}
-	} else {
-		lastStatePressedKey["Right"] = false
+	if inpututil.IsKeyJustPressed(ebiten.KeyRight) {
+		firePower = int(math.Min(float64(firePower+1),5))
 	}
 
 	// if left, decrease power of the flames
-	if ebiten.IsKeyPressed(ebiten.KeyLeft) {
-		if lastStatePressedKey["Left"] == false {
-			firePower = int(math.Max(float64(firePower-1),0))
-			lastStatePressedKey["Left"] = true
-		}
-	} else {
-		lastStatePressedKey["Left"] = false
+	if inpututil.IsKeyJustPressed(ebiten.KeyLeft) {
+		firePower = int(math.Max(float64(firePower-1),0))
 	}
 
 	// if C, change tghe current color map for the next one
-	if ebiten.IsKeyPressed(ebiten.KeyC) {
-		if lastStatePressedKey["C"] == false {
-			currentColorMapIndex++
-			if currentColorMapIndex > len(colorMaps)-1 {
-				currentColorMapIndex=0
-			}
-			currentColorMap = colorMaps[ colorMapLabels[currentColorMapIndex] ]
-			launchColorMapTimer()
-			lastStatePressedKey["C"] = true
+	if inpututil.IsKeyJustPressed(ebiten.KeyC) {
+		currentColorMapIndex++
+		if currentColorMapIndex > len(colorMaps)-1 {
+			currentColorMapIndex=0
 		}
-	} else {
-		lastStatePressedKey["C"] = false
+		currentColorMap = colorMaps[ colorMapLabels[currentColorMapIndex] ]
+		launchColorMapTimer()
 	}
 
 	// if P, pause the animation
-	if ebiten.IsKeyPressed(ebiten.KeyP) {
-		if lastStatePressedKey["P"] == false {
-			pause = !pause
-			lastStatePressedKey["P"] = true
-		}
-	} else {
-		lastStatePressedKey["P"] = false
+	if inpututil.IsKeyJustPressed(ebiten.KeyP) {
+		pause = !pause
 	}
 
 	// if S, fix the hotspots place
-	if ebiten.IsKeyPressed(ebiten.KeyS) {
-		if lastStatePressedKey["S"] == false {
-			fixHotSpots = !fixHotSpots
-			lastStatePressedKey["S"] = true
-		}
-	} else {
-		lastStatePressedKey["S"] = false
+	if inpututil.IsKeyJustPressed(ebiten.KeyS) {
+		fixHotSpots = !fixHotSpots
 	}
 
 	// if H, toogle help displaying
-	if ebiten.IsKeyPressed(ebiten.KeyH) {
-		if lastStatePressedKey["H"] == false {
-			displayHelp = !displayHelp
-			lastStatePressedKey["H"] = true
-		}
-	} else {
-		lastStatePressedKey["H"] = false
+	if inpututil.IsKeyJustPressed(ebiten.KeyH) {
+		displayHelp = !displayHelp
 	}
 
 	// if M, toogle sound
-	if ebiten.IsKeyPressed(ebiten.KeyM) {
-		if lastStatePressedKey["M"] == false {
-			if audioPlayer.IsPlaying() {
-				audioPlayer.Pause()
-			} else {
-				audioPlayer.Play()
-			}
-			//fmt.Printf("audioPlayer.Volume()=%0.2f audioPlayer.IsPlaying()=%b\n", audioPlayer.Volume(), audioPlayer.IsPlaying())
-			lastStatePressedKey["M"] = true
+	if inpututil.IsKeyJustPressed(ebiten.KeyM) {
+		if audioPlayer.IsPlaying() {
+			audioPlayer.Pause()
+		} else {
+			audioPlayer.Play()
 		}
-	} else {
-		lastStatePressedKey["M"] = false
 	}
 	
+
+	// if Alt+Enter, toogle fullscreen
+	if ebiten.IsKeyPressed(ebiten.KeyAlt) && ebiten.IsKeyPressed(ebiten.KeyEnter){
+		if lastStatePressedKey["Alt+Enter"] == false {
+			if ebiten.IsFullscreen() {
+				ebiten.SetFullscreen(false)
+			} else {
+				ebiten.SetFullscreen(true)
+			}
+			lastStatePressedKey["Alt+Enter"] = true
+		}
+	} else {
+		lastStatePressedKey["Alt+Enter"] = false
+	}
+
+
+	// draw a fire circle where the mouse is pressed
+	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
+		x,y := ebiten.CursorPosition()
+		if x>10 && x<WINDOW_WIDTH-10 && y>10 && y<WINDOW_HEIGHT-10 { // not click on the edge
+			for i:=1 ; i<=10 ; i++ {
+				drawCircle(x,y,i)
+			}
+		}
+	}
+	
+}
+
+
+// draw a circle
+func drawCircle(x0, y0, r int) {
+    x, y, dx, dy := r-1, 0, 1, 1
+    err := dx - (r * 2)
+
+    for x > y {
+        buffer2[pixelAt(x0+x, y0+y)] = 255
+        buffer2[pixelAt(x0+y, y0+x)] = 255
+        buffer2[pixelAt(x0-y, y0+x)] = 255
+        buffer2[pixelAt(x0-x, y0+y)] = 255
+        buffer2[pixelAt(x0-x, y0-y)] = 255
+        buffer2[pixelAt(x0-y, y0-x)] = 255
+        buffer2[pixelAt(x0+y, y0-x)] = 255
+        buffer2[pixelAt(x0+x, y0-y)] = 255
+
+        if err <= 0 {
+            y++
+            err += dy
+            dy += 2
+        }
+        if err > 0 {
+            x--
+            dx += 2
+            err += dx - (r * 2)
+        }
+    }
 }
