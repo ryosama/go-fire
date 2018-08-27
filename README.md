@@ -16,6 +16,12 @@ $ go get -u github.com/aquilax/go-perlin
 $ go get -u github.com/ryosama/go-fire
 ```
 
+Video
+=====
+
+https://youtu.be/pWwr04q0-zE
+
+
 Screenshot
 ===========
 
@@ -47,8 +53,3 @@ Documentation
 - __[Alt+Enter]__ Toogle fullscreen
 
 - __[Left Click]__ Draw a fire circle
-
-TODO
-=============
-
-- Add a video capture
