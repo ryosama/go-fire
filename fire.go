@@ -18,10 +18,13 @@ import (
 )
 
 const (
-	WINDOW_WIDTH  = 320
-	WINDOW_HEIGHT = 240
-	SCALE         = 2 		// scale of the window
-	WINDOW_SIZE   = WINDOW_WIDTH * WINDOW_HEIGHT
+	WINDOW_WIDTH  		= 320			// Width of animation
+	WINDOW_HEIGHT 		= 240			// Height of animation
+	SCALE         		= 2 			// scale of the window
+	WINDOW_SIZE   		= WINDOW_WIDTH * WINDOW_HEIGHT
+	COLOR_MAP_HEIGHT 	= 5 			// height of the preview of the color map currently displayed
+	SOUND_FILE			= "fire.mp3"	// filename of the sound
+	MAXIMUM_POWER		= 255 			// Power is stock as a uint8, 255 is the max
 )
 
 var (	
@@ -62,50 +65,26 @@ func update(surface *ebiten.Image) error {
 			initHotSpots()
 		}
 		
-		// draw hotspot a the bottom of the screen (3 pixel large)
+		// draw hotspots
 		for _,x := range hotSpots {
-			buffer1[pixelAt(x-1,WINDOW_HEIGHT)] = 255
-			buffer1[pixelAt(x  ,WINDOW_HEIGHT)] = 255
-			buffer1[pixelAt(x+1,WINDOW_HEIGHT)] = 255
+			drawHotspot(x)
 		}
 
 		// for each pixel on the screen, compute the average power the neighbourg pixel
 		for x:=1 ; x<WINDOW_WIDTH-1 ; x++ {
-			for y:=1 ; y<WINDOW_HEIGHT ; y++ {
+			for y:=1 ; y<=WINDOW_HEIGHT ; y++ {
+				newHotness := averageHotness(x,y)
 
-				// neighbourg pixel
-				hotness1 := int(buffer1[pixelAt(x+1,y  )])
-				hotness2 := int(buffer1[pixelAt(x-1,y  )])
-				hotness3 := int(buffer1[pixelAt(x  ,y+1)])
-				hotness4 := int(buffer1[pixelAt(x  ,y-1)])
-				newHotness 	:= float64(hotness1+hotness2+hotness3+hotness4) / 4
-
-				// apply coolness from cooling map
-				yCoolness 	:= y + collingBufferFirstRow
-				yCoolness 	%= WINDOW_HEIGHT
-				coolness 	:= collingBuffer[ pixelAt(x, yCoolness ) ]
-
-				// store new value into buffer2
-				newHotness 	= newHotness - float64(coolness)
-				if (newHotness < 0) {
-					newHotness = 0
-				} else if newHotness > 255 {
-					newHotness = 255
-				}
-
+				// if the power is enought high, consider this as a flame and compute the hightness flame
 				if newHotness > 20 {
-					if WINDOW_HEIGHT - y > fireHeight { fireHeight = WINDOW_HEIGHT - y }
+					if WINDOW_HEIGHT - y > fireHeight {
+						fireHeight = WINDOW_HEIGHT - y
+					}
 				}
-				buffer2[pixelAt(x,y-1)] = uint8(newHotness)
-			}
 
-			// for the last line do the same
-			y := WINDOW_HEIGHT
-			hotness1 := int(buffer1[pixelAt(x+1,y  )])
-			hotness2 := int(buffer1[pixelAt(x-1,y  )])
-			hotness4 := int(buffer1[pixelAt(x  ,y-1)])
-			newHotness := float64(hotness1+hotness2+hotness4) / 3
-			buffer2[pixelAt(x,y-1)] = uint8(newHotness)
+				// store the average hotness into the new buffer
+				buffer2[pixelAt(x,y-1)] = newHotness 
+			}
 		}
 
 		// add random sparkles
@@ -160,6 +139,43 @@ func pixelAt(x int, y int) int {
 	return x + y*WINDOW_WIDTH
 }
 
+
+func averageHotness(x int, y int) uint8 {
+	// neighbourg pixel
+
+	newHotness := 0.0
+
+	if y >= WINDOW_HEIGHT { // for last line
+		y := WINDOW_HEIGHT
+		hotness1 := int(buffer1[pixelAt(x+1,y  )])
+		hotness2 := int(buffer1[pixelAt(x-1,y  )])
+		hotness4 := int(buffer1[pixelAt(x  ,y-1)])
+		newHotness = float64(hotness1+hotness2+hotness4) / 3
+
+	} else { // for other lines on the screen
+		hotness1 	:= int(buffer1[pixelAt(x+1,y  )])
+		hotness2 	:= int(buffer1[pixelAt(x-1,y  )])
+		hotness3 	:= int(buffer1[pixelAt(x  ,y+1)])
+		hotness4 	:= int(buffer1[pixelAt(x  ,y-1)])
+		newHotness 	= float64(hotness1+hotness2+hotness3+hotness4) / 4
+	}
+
+	// apply coolness from cooling map
+	yCoolness 	:= y + collingBufferFirstRow
+	yCoolness 	%= WINDOW_HEIGHT
+	coolness 	:= collingBuffer[ pixelAt(x, yCoolness ) ]
+
+	// store new value into buffer2
+	newHotness 	= newHotness - float64(coolness)
+	if (newHotness < 0) {
+		newHotness = 0
+	} else if newHotness > MAXIMUM_POWER {
+		newHotness = MAXIMUM_POWER
+	}
+	return uint8(newHotness)
+}
+
+
 // convert the power of a pixel by the corresponding color in the color map
 func convertHotnessToImage() {
 	for x:=0 ; x<WINDOW_WIDTH ; x++ {
@@ -192,11 +208,20 @@ func drawFPS(surface *ebiten.Image) {
 	}
 }
 
+
+// draw a hotspot (3 pixel large) at the bottom of the screen
+func drawHotspot(x int) {
+	buffer1[pixelAt(x-1,WINDOW_HEIGHT)] = MAXIMUM_POWER
+	buffer1[pixelAt(x  ,WINDOW_HEIGHT)] = MAXIMUM_POWER
+	buffer1[pixelAt(x+1,WINDOW_HEIGHT)] = MAXIMUM_POWER
+}
+
+
 // draw the current color map on the screen (5 pixels large)
 func drawColorMap() {
 	if displayColorMap {
 		for x:=0 ; x<len(currentColorMap) ; x++ {
-			for y:=0 ; y<5 ; y++ {
+			for y:=0 ; y<COLOR_MAP_HEIGHT ; y++ {
 				imageBuffer.SetRGBA(x+20, 100+y, currentColorMap[x])
 			}
 		}
@@ -354,7 +379,7 @@ func launchColorMapTimer() {
 // play the fire sound
 func initSound() {
 	// load the file into memory
-	soundFile, err := ioutil.ReadFile("fire.mp3")
+	soundFile, err := ioutil.ReadFile(SOUND_FILE)
 	if err != nil { log.Fatal(err) }
 
 	audioContext, err := audio.NewContext(44100)
@@ -381,14 +406,14 @@ func drawCircle(x0, y0, r int) {
     err := dx - (r * 2)
 
     for x > y {
-        buffer2[pixelAt(x0+x, y0+y)] = 255
-        buffer2[pixelAt(x0+y, y0+x)] = 255
-        buffer2[pixelAt(x0-y, y0+x)] = 255
-        buffer2[pixelAt(x0-x, y0+y)] = 255
-        buffer2[pixelAt(x0-x, y0-y)] = 255
-        buffer2[pixelAt(x0-y, y0-x)] = 255
-        buffer2[pixelAt(x0+y, y0-x)] = 255
-        buffer2[pixelAt(x0+x, y0-y)] = 255
+        buffer2[pixelAt(x0+x, y0+y)] = MAXIMUM_POWER
+        buffer2[pixelAt(x0+y, y0+x)] = MAXIMUM_POWER
+        buffer2[pixelAt(x0-y, y0+x)] = MAXIMUM_POWER
+        buffer2[pixelAt(x0-x, y0+y)] = MAXIMUM_POWER
+        buffer2[pixelAt(x0-x, y0-y)] = MAXIMUM_POWER
+        buffer2[pixelAt(x0-y, y0-x)] = MAXIMUM_POWER
+        buffer2[pixelAt(x0+y, y0-x)] = MAXIMUM_POWER
+        buffer2[pixelAt(x0+x, y0-y)] = MAXIMUM_POWER
 
         if err <= 0 {
             y++
@@ -416,11 +441,7 @@ func addSparkles() {
 		if y > WINDOW_HEIGHT-1 { y=WINDOW_HEIGHT-1 }
 
 		// draw a little sparkle
-		buffer2[pixelAt(x  ,WINDOW_HEIGHT - y  )] = 255
-		buffer2[pixelAt(x-1,WINDOW_HEIGHT - y  )] = 255
-		buffer2[pixelAt(x+1,WINDOW_HEIGHT - y  )] = 255
-		buffer2[pixelAt(x  ,WINDOW_HEIGHT - y-1)] = 255
-		buffer2[pixelAt(x  ,WINDOW_HEIGHT - y+1)] = 255
+		drawCircle(x,y,2)
 	}
 }
 
