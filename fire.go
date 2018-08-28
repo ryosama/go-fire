@@ -128,8 +128,7 @@ func main() {
 	initColorMaps()
 	initHotSpots()
 	initNoise()
-	initSound()
-
+	go initSound() // launch sound in another proc
 	// infinit loop
 	if err := ebiten.Run(update, WINDOW_WIDTH, WINDOW_HEIGHT, SCALE, "Fire 2"); err != nil { log.Fatal(err) }
 }
@@ -142,7 +141,6 @@ func pixelAt(x int, y int) int {
 
 func averageHotness(x int, y int) uint8 {
 	// neighbourg pixel
-
 	newHotness := 0.0
 
 	if y >= WINDOW_HEIGHT { // for last line
@@ -366,7 +364,8 @@ func Predator_ColorMap() [256]color.RGBA {
 	return colorMap
 }
 
-// hide the color map afert 2 second
+
+// hide the color map after 2 seconds
 func launchColorMapTimer() {
 	displayColorMap=true
 	timer2 := time.NewTimer(time.Second * 2)
@@ -482,6 +481,11 @@ func bindings() {
 
 	// if P, pause the animation
 	if inpututil.IsKeyJustPressed(ebiten.KeyP) {
+		if pause {
+			audioPlayer.Play() // restore audio
+		} else {
+			audioPlayer.Pause() // mute audio
+		}
 		pause = !pause
 	}
 
