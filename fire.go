@@ -11,11 +11,14 @@ import (
 	"image"
 	"image/color"
 	"io/ioutil"
+	"bytes"
 	"log"
 	"math"
 	"math/rand"
 	"time"
 )
+
+type Game struct{}
 
 const (
 	windowWidth    = 320 // Width of animation
@@ -55,8 +58,9 @@ var (
 	imageBuffer           = image.NewRGBA(image.Rect(0, 0, windowWidth, windowHeight)) // drawing window
 )
 
-func update(surface *ebiten.Image) error {
 
+
+func (g *Game) Update() error {
 	if !pause { // if animation isn't paused
 
 		fireHeight = 0 // reset height of hightest flame
@@ -95,17 +99,17 @@ func update(surface *ebiten.Image) error {
 	// manage keyboard inputs and mouse inputs
 	bindings()
 
-	// frame skip
-	if ebiten.IsDrawingSkipped() {
-		return nil
-	}
-
 	// convert the power of a pixel by the corresponding color in the color map
 	convertHotnessToImage()
 
 	// display the color map to the screen
 	drawColorMap()
 
+	return nil
+}
+
+
+func (g *Game) Draw(surface *ebiten.Image) {
 	// update surface
 	surface.ReplacePixels(imageBuffer.Pix)
 
@@ -117,9 +121,16 @@ func update(surface *ebiten.Image) error {
 
 	// display FPS and other stuff
 	drawFPS(surface)
-
-	return nil
 }
+
+
+
+func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
+	return windowWidth, windowHeight
+}
+
+
+
 
 func main() {
 	// ini binding
@@ -130,15 +141,23 @@ func main() {
 	initNoise()
 	go initSound() // launch sound in another proc
 	// infinit loop
-	if err := ebiten.Run(update, windowWidth, windowHeight, scale, "Fire 2"); err != nil {
+
+	ebiten.SetWindowSize(windowWidth, windowHeight)
+	ebiten.SetWindowTitle("Fire 3")
+
+	if err := ebiten.RunGame(&Game{}); err != nil {
 		log.Fatal(err)
 	}
 }
+
+
 
 // convert x,y coordonnate to an index
 func pixelAt(x int, y int) int {
 	return x + y*windowWidth
 }
+
+
 
 func averageHotness(x int, y int) uint8 {
 	// neighbourg pixel
@@ -195,6 +214,13 @@ func moveCollingBufferUp() {
 // display some stuff on the screen
 func drawFPS(surface *ebiten.Image) {
 	if displayHelp {
+		/*tmp := ""
+		for key := ebiten.Key(0); key <= ebiten.KeyMax; key++ {
+			if ebiten.IsKeyPressed(ebiten.Key(key)) {
+				tmp = key.String()
+			}
+		}*/
+
 		ebitenutil.DebugPrint(surface,
 			fmt.Sprintf("FPS:%f\n[Up/Down] Number of flames=%d\n[Left/Right] Fire Power=%d\n[C] Color Map %d=%s\n[P]ause [S]tatic [M]ute [H]elp",
 				ebiten.CurrentFPS(),
@@ -202,6 +228,7 @@ func drawFPS(surface *ebiten.Image) {
 				firePower,
 				currentColorMapIndex,
 				colorMapLabels[currentColorMapIndex],
+				//tmp,
 			))
 	}
 }
@@ -238,6 +265,7 @@ func initNoise() {
 		}
 	}
 }
+
 
 // store the places of each hotspot
 func initHotSpots() {
@@ -374,18 +402,16 @@ func launchColorMapTimer() {
 // play the fire sound
 func initSound() {
 	// load the file into memory
-	soundFile, err := ioutil.ReadFile(soundFile)
+	soundFileReader, err := ioutil.ReadFile(soundFile)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	audioContext, err := audio.NewContext(44100)
-	if err != nil {
-		log.Fatal(err)
-	}
+	audioContext := audio.NewContext(44100)
 
 	// Decode the mp3 file.
-	wavS, err := mp3.Decode(audioContext, audio.BytesReadSeekCloser(soundFile))
+	//wavS, err := mp3.Decode(audioContext, audio.BytesReadSeekCloser(soundFile))
+	wavS, err := mp3.Decode(audioContext, bytes.NewReader(soundFileReader) )
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -401,6 +427,7 @@ func initSound() {
 	// Play the infinite-length stream. This never ends.
 	audioPlayer.Play()
 }
+
 
 // draw a circle
 func drawCircle(x0, y0, r int) {
@@ -508,7 +535,7 @@ func bindings() {
 	}
 
 	// if M, toogle sound
-	if inpututil.IsKeyJustPressed(ebiten.KeyM) {
+	if inpututil.IsKeyJustPressed(ebiten.KeyM) || inpututil.IsKeyJustPressed(ebiten.KeySemicolon) {
 		if audioPlayer.IsPlaying() {
 			audioPlayer.Pause()
 		} else {
@@ -539,5 +566,4 @@ func bindings() {
 			}
 		}
 	}
-
 }
