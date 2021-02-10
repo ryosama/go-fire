@@ -1,17 +1,17 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/aquilax/go-perlin"
-	"github.com/hajimehoshi/ebiten"
-	"github.com/hajimehoshi/ebiten/audio"
-	"github.com/hajimehoshi/ebiten/audio/mp3"
-	"github.com/hajimehoshi/ebiten/ebitenutil"
-	"github.com/hajimehoshi/ebiten/inpututil"
+	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/audio"
+	"github.com/hajimehoshi/ebiten/v2/audio/mp3"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
 	"image"
 	"image/color"
 	"io/ioutil"
-	"bytes"
 	"log"
 	"math"
 	"math/rand"
@@ -57,8 +57,6 @@ var (
 	collingBufferFirstRow int                                                          // to move the colling buffer up at every frame
 	imageBuffer           = image.NewRGBA(image.Rect(0, 0, windowWidth, windowHeight)) // drawing window
 )
-
-
 
 func (g *Game) Update() error {
 	if !pause { // if animation isn't paused
@@ -108,7 +106,6 @@ func (g *Game) Update() error {
 	return nil
 }
 
-
 func (g *Game) Draw(surface *ebiten.Image) {
 	// update surface
 	surface.ReplacePixels(imageBuffer.Pix)
@@ -123,14 +120,9 @@ func (g *Game) Draw(surface *ebiten.Image) {
 	drawFPS(surface)
 }
 
-
-
 func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
 	return windowWidth, windowHeight
 }
-
-
-
 
 func main() {
 	// ini binding
@@ -150,14 +142,10 @@ func main() {
 	}
 }
 
-
-
 // convert x,y coordonnate to an index
 func pixelAt(x int, y int) int {
 	return x + y*windowWidth
 }
-
-
 
 func averageHotness(x int, y int) uint8 {
 	// neighbourg pixel
@@ -265,7 +253,6 @@ func initNoise() {
 		}
 	}
 }
-
 
 // store the places of each hotspot
 func initHotSpots() {
@@ -411,7 +398,7 @@ func initSound() {
 
 	// Decode the mp3 file.
 	//wavS, err := mp3.Decode(audioContext, audio.BytesReadSeekCloser(soundFile))
-	wavS, err := mp3.Decode(audioContext, bytes.NewReader(soundFileReader) )
+	wavS, err := mp3.Decode(audioContext, bytes.NewReader(soundFileReader))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -427,7 +414,6 @@ func initSound() {
 	// Play the infinite-length stream. This never ends.
 	audioPlayer.Play()
 }
-
 
 // draw a circle
 func drawCircle(x0, y0, r int) {
